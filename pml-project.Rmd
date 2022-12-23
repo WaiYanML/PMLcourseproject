@@ -1,0 +1,69 @@
+---
+title: "PML Project (Weight Lifting Exercise)"
+author: "Wai Yan Moe Lwin"
+date: "12/22/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+```
+
+# Introduction
+
+One thing that people regularly do is quantify how  much of a particular activity they do, but they rarely quantify how well they do it. In this project, our goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants and build a model to predict how well they do the exercise.  
+
+We can get the training data from [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv) and testing data from [here](https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv).  
+All the data are from sourced from [here](http://web.archive.org/web/20161224072740/http:/groupware.les.inf.puc-rio.br/har)
+
+# Transforming Data
+First, we will load the data and required packages.  
+```{r}
+library(caret)
+training <- read.csv('pml-training.csv')
+testing <- read.csv('pml-testing.csv')
+dim(training); dim(testing)
+```
+Now, when we look at the data, there are variables with lots of missing values. So, we decided to exclude them from our model. According to our purpose to predict whether a weight lifting rep is good or not from sensors, we will also exclude variables which are not from sensors.  
+```{r}
+not_na_col <- colSums(is.na(testing))==0
+training <- training[not_na_col]
+testing <- testing[not_na_col]
+
+training <- training[8:60]
+testing <- testing[8:60]
+
+InTrain <- createDataPartition(training$classe, p=0.7, list=F)
+Train <- training[InTrain,]
+Test <- training[-InTrain,] #This is for out of sample validation.
+```
+
+Now, we fit our model with random forest. It took around 2 hours for me to fit it so I will save it and load it for future use.
+```{r}
+if (file.exists('model.rds')){
+  fit <- readRDS('model.rds')
+}else{
+  fit <- train(classe~., 'rf', data=Train)
+  saveRDS(fit, 'model.rds')
+}
+```
+
+Then, we will look into accuracies.
+```{r}
+train_pred <- predict(fit, Train)
+train_accuracy <- mean(train_pred==Train$classe)
+train_accuracy
+table(train_pred, Train$classe)
+
+test_pred <- predict(fit, Test)
+test_accuracy <- mean(test_pred==Test$classe)
+test_error <- 1 - test_accuracy
+test_accuracy
+table(test_pred, Test$classe)
+```
+So, we can see that in-sample accuracy is `r train_accuracy`  out-of-sample accuracy is `r test_accuracy`.  
+Therefore, estimated out-of-sample error is `r test_error` and we conclude our project here.
+
+
+
+
